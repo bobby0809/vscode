@@ -80,11 +80,14 @@ export class HierarchicalByLocationProjection extends Disposable implements ITes
 		}));
 
 		// when test states change, reflect in the tree
-		this._register(results.onTestChanged(([, { item, state, computedState }]) => {
+		// todo: optimize this to avoid needing to iterate
+		this._register(results.onTestChanged(({ item: result }) => {
 			for (const i of this.items.values()) {
-				if (i.test.item.extId === item.extId) {
-					i.ownState = state.state;
-					refreshComputedState(computedStateAccessor, i, this.addUpdated, computedState);
+				if (i.test.item.extId === result.item.extId) {
+					i.ownState = result.state.state;
+					i.retired = result.retired;
+					refreshComputedState(computedStateAccessor, i, this.addUpdated, result.computedState);
+					this.addUpdated(i);
 					this.updateEmitter.fire();
 					return;
 				}
@@ -118,6 +121,13 @@ export class HierarchicalByLocationProjection extends Disposable implements ITes
 	 */
 	public getTestAtPosition(uri: URI, position: Position) {
 		return this.locations.getTestAtPosition(uri, position);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public hasTestInDocument(uri: URI) {
+		return this.locations.hasTestInDocument(uri);
 	}
 
 	/**
@@ -222,6 +232,7 @@ export class HierarchicalByLocationProjection extends Disposable implements ITes
 		const prevState = this.results.getStateByExtId(item.test.item.extId)?.[1];
 		if (prevState) {
 			item.ownState = prevState.state.state;
+			item.retired = prevState.retired;
 			refreshComputedState(computedStateAccessor, item, this.addUpdated, prevState.computedState);
 		}
 	}
